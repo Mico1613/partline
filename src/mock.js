@@ -1,4 +1,3 @@
-// Synthetic fixture: prices, availability and interchangeability are for UI testing only.
 const parts = [
   {
     goodsID: "mock-mann",
@@ -32,7 +31,6 @@ const parts = [
 const normalize = (number) => number.replace(/[\s/-]/g, "").toUpperCase();
 export function mockResponse(number, brand) {
   const normalized = normalize(number);
-  // Two brands share the example article to exercise the manufacturer selection.
   const catalog = [
     ...parts,
     { ...parts[1], goodsID: "mock-bosch-example", number: "W 914/2" },

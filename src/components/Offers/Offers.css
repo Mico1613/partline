@@ -1,4 +1,3 @@
-/* Fixed column widths keep the table steady when filtering or sorting. */
 @media (min-width: 768px) {
   .offers-table {
     table-layout: fixed;
@@ -16,7 +15,6 @@
     width: 14%;
   }
 }
-/* Align the outer cells with the card header padding. */
 .offers-table th:first-child,
 .offers-table td:first-child {
   padding-left: var(--bs-card-spacer-x);

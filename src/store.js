@@ -21,7 +21,6 @@ const translate = (error) =>
   (Array.isArray(error) ? error : [error])
     .map((e) => translations[String(e)] || String(e))
     .join("; ");
-// Without a key in .env the app runs on demo data (this is what Pages shows).
 export const isDemo = !API_KEY;
 async function request({ number, brand }, signal) {
   if (isDemo) {

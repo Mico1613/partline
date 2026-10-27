@@ -5,7 +5,6 @@ export default defineConfig({
   plugins: [react()],
   css: {
     preprocessorOptions: {
-      // Bootstrap 5 still uses @import and legacy Sass functions.
       scss: {
         quietDeps: true,
         silenceDeprecations: [

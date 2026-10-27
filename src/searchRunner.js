@@ -1,4 +1,3 @@
-// Automatic and manual searches share a timer and an abortable request.
 export function createSearchRunner(search, timers = globalThis) {
   let timer;
   let request;
