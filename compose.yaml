@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-8080}:3001"
+    environment:
+      DATA_MODE: ${DATA_MODE:-mock}
+      FAVORIT_API_KEY: ${FAVORIT_API_KEY:-}
+      FAVORIT_API_URL: ${FAVORIT_API_URL:-https://api.favorit-parts.ru/hs/hsprice/}
+    init: true
+    restart: unless-stopped

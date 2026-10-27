@@ -1,0 +1,11 @@
+node_modules
+.git
+.env
+.env.*
+dist
+coverage
+*.log
+tests
+original-task.md
+README.md
+assets
