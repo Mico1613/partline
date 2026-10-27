@@ -3,8 +3,8 @@ import { render, screen, within, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
-import App from "../../src/App.jsx";
-import { searchReducer, setMode } from "../../src/store.js";
+import App from "../../src/components/App/App.jsx";
+import { searchReducer } from "../../src/store.js";
 import { mockResponse } from "../../src/mock.js";
 
 function setup(handler) {
@@ -63,10 +63,7 @@ describe("search workflow with real Redux and request thunks", () => {
     );
     expect(bodyRows()).toHaveLength(3);
     expect(document.querySelector(".count-badge")).toHaveTextContent("3");
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Сортировать предложения" }),
-      "price",
-    );
+    await user.click(screen.getByRole("radio", { name: "Дешевле" }));
     expect(bodyRows()[0]).toHaveTextContent("BOSCH");
     expect(bodyRows()[0]).toHaveTextContent("620");
     await user.click(
@@ -159,36 +156,36 @@ describe("search workflow with real Redux and request thunks", () => {
     expect(bodyRows()[0]).toHaveTextContent("NEW");
   });
 
-  it("switching mode aborts pending search and preserves the article", async () => {
-    let oldSignal;
-    const { user, store, fetchMock } = setup((_, { signal }) => {
-      oldSignal = signal;
-      return new Promise(() => {});
-    });
+  it("sends the key straight to Favorit and translates supplier errors", async () => {
+    const { user, fetchMock } = setup(async () =>
+      Response.json({ error: ["Invalid key client!"] }, { status: 403 }),
+    );
     await user.type(article(), "W 914/2");
     await user.click(
       screen.getByRole("button", { name: "Найти", exact: true }),
     );
-    fetchMock.mockImplementation(async () =>
-      Response.json({ error: "Неверный ключ покупателя." }, { status: 403 }),
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Неверный ключ покупателя.",
     );
-    act(() => store.dispatch(setMode("api")));
-    expect(oldSignal.aborted).toBe(true);
-    expect(article()).toHaveValue("W 914/2");
-    expect(await screen.findByRole("alert")).toHaveTextContent("Неверный ключ");
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(fetchMock.mock.calls[1][0]).toContain("mode=api");
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.origin).toBe("https://api.favorit-parts.ru");
+    expect(url.searchParams.get("key")).toBe("test-key");
+    expect(url.searchParams.get("number")).toBe("W 914/2");
   });
-});
 
-it("static build completes both search stages without any API requests", async () => {
-  vi.stubEnv("VITE_DATA_SOURCE", "mock");
-  const { user, fetchMock } = setup(async () => {
-    throw new Error("No server on Pages");
+  it("reports supplier outages and invalid JSON", async () => {
+    const { user, fetchMock } = setup(
+      async () => new Response("down", { status: 503 }),
+    );
+    await user.type(article(), "W 914/2");
+    await user.click(
+      screen.getByRole("button", { name: "Найти", exact: true }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("HTTP 503");
+    fetchMock.mockImplementation(async () => new Response("<html>"));
+    await user.click(screen.getByRole("button", { name: "Повторить" }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("некорректный ответ"),
+    );
   });
-  await search(user);
-  await user.click(screen.getByRole("button", { name: "MANN-FILTER" }));
-  await screen.findByRole("table");
-  expect(bodyRows()).toHaveLength(4);
-  expect(fetchMock).not.toHaveBeenCalled();
 });

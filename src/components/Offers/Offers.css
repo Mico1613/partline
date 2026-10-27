@@ -1,0 +1,27 @@
+/* Fixed column widths keep the table steady when filtering or sorting. */
+@media (min-width: 768px) {
+  .offers-table {
+    table-layout: fixed;
+  }
+  .offers-table th:nth-child(1) {
+    width: 36%;
+  }
+  .offers-table th:nth-child(2) {
+    width: 16%;
+  }
+  .offers-table th:nth-child(3) {
+    width: 18%;
+  }
+  .offers-table th:nth-child(4) {
+    width: 14%;
+  }
+}
+/* Align the outer cells with the card header padding. */
+.offers-table th:first-child,
+.offers-table td:first-child {
+  padding-left: var(--bs-card-spacer-x);
+}
+.offers-table th:last-child,
+.offers-table td:last-child {
+  padding-right: var(--bs-card-spacer-x);
+}

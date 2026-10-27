@@ -5,18 +5,9 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY index.html vite.config.js ./
 COPY src ./src
-RUN VITE_DATA_SOURCE=server npm run build
+ARG VITE_FAVORIT_API_KEY=
+ARG VITE_FAVORIT_API_URL=
+RUN npm run build
 
-FROM node:22-alpine AS runtime
-ENV NODE_ENV=production PORT=3001
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-COPY --from=build /app/dist ./dist
-COPY server ./server
-COPY src/mock.js ./src/mock.js
-USER node
-EXPOSE 3001
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3001/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-CMD ["node", "server/index.js"]
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html

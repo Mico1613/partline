@@ -5,20 +5,16 @@ test("documented empty responses produce no goods", () => {
   assert.deepEqual(readGoods({ goods: [{}] }), []);
   assert.deepEqual(readGoods({ goods: [] }), []);
 });
-test("API errors and malformed payloads are surfaced", () => {
-  assert.throws(
-    () => readGoods({ error: "Invalid key client!" }),
-    /Invalid key/,
-  );
+test("malformed payloads are surfaced", () => {
   assert.throws(() => readGoods({ unexpected: [] }), /формате/);
 });
 test("brands are deduplicated", () => {
-  assert.equal(
+  assert.deepEqual(
     getBrands([
       { brand: "A", number: "1" },
       { brand: "A", number: "1" },
-    ]).length,
-    1,
+    ]),
+    ["A"],
   );
 });
 test("warehouse prices are used instead of obsolete product price; nested analogues are flattened", () => {

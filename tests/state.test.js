@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   searchReducer,
   setNumber,
-  setMode,
   selectBrand,
   findBrands,
   findOffers,
@@ -68,32 +67,14 @@ test("new brand search clears selection and rejects stale offer/brand responses"
   assert.equal(state.brandsStatus, "idle");
   assert.deepEqual(state.brands, []);
 });
-test("network failures are localized and aborted requests return idle", async (t) => {
-  const store = configureStore({ reducer: searchReducer });
-  t.mock.method(globalThis, "fetch", async () => {
-    throw new TypeError("Failed to fetch");
+test("without a key both search stages use demo data and never call fetch", async (t) => {
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => {
+    throw new Error("unexpected request");
   });
-  await store.dispatch(findBrands({ number: "1" }));
-  assert.match(store.getState().brandsError, /Не удалось связаться/);
-  t.mock.method(globalThis, "fetch", () => new Promise(() => {}));
-  const promise = store.dispatch(findBrands({ number: "2" }));
-  promise.abort();
-  await promise;
-  assert.equal(store.getState().brandsStatus, "idle");
-});
-
-test("switching modes preserves article, resets results and ignores in-flight responses", () => {
-  let state = searchReducer(undefined, setNumber("W 914/2"));
-  state = searchReducer(state, findBrands.pending("mock-request", {}));
-  state = searchReducer(state, setMode("api"));
-  state = searchReducer(
-    state,
-    findBrands.fulfilled([{ brand: "MOCK" }], "mock-request", {}),
-  );
-  assert.equal(state.number, "W 914/2");
-  assert.equal(state.mode, "api");
-  assert.deepEqual(state.brands, []);
-  assert.equal(state.brandsStatus, "idle");
-  state = searchReducer(state, setNumber("OC 384"));
-  assert.equal(state.mode, "api");
+  const store = configureStore({ reducer: searchReducer });
+  await store.dispatch(findBrands({ number: "W 914/2" }));
+  assert.deepEqual(store.getState().brands, ["MANN-FILTER", "BOSCH"]);
+  await store.dispatch(findOffers({ number: "W 914/2", brand: "MANN-FILTER" }));
+  assert.equal(store.getState().offers.length, 4);
+  assert.equal(fetchMock.mock.callCount(), 0);
 });

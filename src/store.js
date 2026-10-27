@@ -5,45 +5,76 @@ import {
 } from "@reduxjs/toolkit";
 import { getBrands, getOffers, readGoods } from "./data.js";
 import { mockResponse } from "./mock.js";
-async function request(params, signal) {
-  // Static builds (including Pages) never need /api. Docker explicitly opts in.
-  if (import.meta.env && import.meta.env.VITE_DATA_SOURCE !== "server") {
+const env = import.meta.env || {};
+const API_KEY = env.VITE_FAVORIT_API_KEY;
+const API_URL =
+  env.VITE_FAVORIT_API_URL || "https://api.favorit-parts.ru/hs/hsprice/";
+const TIMEOUT_MS = 15000;
+const translations = {
+  "Empty key!": "Не указан ключ покупателя.",
+  "Invalid key client!": "Неверный ключ покупателя.",
+  "Invalid access key": "Неверный ключ покупателя.",
+  "Empty number goods!": "Не указан артикул детали.",
+  "Request quota exceeded!": "Превышен лимит запросов поставщика.",
+};
+const translate = (error) =>
+  (Array.isArray(error) ? error : [error])
+    .map((e) => translations[String(e)] || String(e))
+    .join("; ");
+// Without a key in .env the app runs on demo data (this is what Pages shows).
+export const isDemo = !API_KEY;
+async function request({ number, brand }, signal) {
+  if (isDemo) {
     signal.throwIfAborted();
-    return readGoods(mockResponse(params.number, params.brand));
+    return readGoods(mockResponse(number, brand));
   }
+  const url = new URL(API_URL);
+  url.search = new URLSearchParams({
+    key: API_KEY,
+    number,
+    ...(brand ? { brand, analogues: "on" } : {}),
+  });
+  const timeout = AbortSignal.timeout(TIMEOUT_MS);
   let response;
   try {
-    response = await fetch(`/api/search?${new URLSearchParams(params)}`, {
-      signal,
-    });
+    response = await fetch(url, { signal: AbortSignal.any([signal, timeout]) });
   } catch (error) {
-    if (signal.aborted || error.name === "AbortError") throw error;
+    if (signal.aborted) throw error;
     throw new Error(
-      "Не удалось связаться с сервером. Проверьте подключение и повторите попытку.",
+      timeout.aborted
+        ? "Сервис не ответил за 15 секунд. Повторите попытку."
+        : "Не удалось связаться с сервисом. Проверьте подключение и повторите попытку.",
+      { cause: error },
     );
   }
+  if (response.status >= 500)
+    throw new Error(
+      `Сервис поставщика недоступен (HTTP ${response.status}). Повторите попытку.`,
+    );
   let payload;
   try {
     payload = await response.json();
   } catch {
-    throw new Error("Не удалось прочитать ответ сервера. Повторите попытку.");
+    throw new Error(
+      "Сервис поставщика вернул некорректный ответ. Повторите попытку.",
+    );
   }
+  if (payload?.error) throw new Error(translate(payload.error));
   if (!response.ok)
-    throw new Error(payload?.error || `Ошибка сервера (${response.status})`);
+    throw new Error(`Ошибка сервиса (HTTP ${response.status}).`);
   return readGoods(payload);
 }
 export const findBrands = createAsyncThunk(
   "search/brands",
-  async ({ number, mode = "api" }, { signal }) =>
-    getBrands(await request({ number, mode }, signal)),
+  async ({ number }, { signal }) =>
+    getBrands(await request({ number }, signal)),
 );
 export const findOffers = createAsyncThunk(
   "search/offers",
-  async ({ number, brand, mode = "api" }, { signal }) =>
-    getOffers(await request({ number, brand, mode }, signal)),
+  async ({ number, brand }, { signal }) =>
+    getOffers(await request({ number, brand }, signal)),
 );
 const initialState = {
-  mode: "mock",
   number: "",
   brand: null,
   brands: [],
@@ -59,11 +90,8 @@ const slice = createSlice({
   name: "search",
   initialState,
   reducers: {
-    setNumber(state, action) {
-      return { ...initialState, mode: state.mode, number: action.payload };
-    },
-    setMode(state, action) {
-      return { ...initialState, number: state.number, mode: action.payload };
+    setNumber(_, action) {
+      return { ...initialState, number: action.payload };
     },
     selectBrand(state, action) {
       state.brand = action.payload;
@@ -105,6 +133,6 @@ const slice = createSlice({
     }
   },
 });
-export const { setNumber, setMode, selectBrand } = slice.actions;
+export const { setNumber, selectBrand } = slice.actions;
 export const searchReducer = slice.reducer;
 export const store = configureStore({ reducer: { search: searchReducer } });

@@ -1,21 +1,11 @@
 export function readGoods(payload) {
-  if (payload?.error)
-    throw new Error(
-      Array.isArray(payload.error)
-        ? payload.error.join("; ")
-        : String(payload.error),
-    );
   const goods = Array.isArray(payload) ? payload : payload?.goods;
   if (!Array.isArray(goods))
     throw new Error("Сервис вернул ответ в неизвестном формате.");
   return goods.filter((item) => item && item.brand && item.number);
 }
 export function getBrands(goods) {
-  return [
-    ...new Map(
-      goods.map((g) => [g.brand, { brand: g.brand, number: g.number }]),
-    ).values(),
-  ];
+  return [...new Set(goods.map((g) => g.brand))];
 }
 export function getOffers(goods) {
   const rows = new Map();
